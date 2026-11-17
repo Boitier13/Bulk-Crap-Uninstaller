@@ -101,14 +101,13 @@ public static class BcuSnapshotBenchmark
             watch.Start();
             string[] first = CaptureSnapshot(path);
             string[] second = CaptureSnapshot(path);
-            watch.Stop();
-
             if (first.Length != second.Length)
                 throw new InvalidOperationException("Snapshot entry counts differ.");
             for (int j = 0; j < first.Length; j++)
                 if (!String.Equals(first[j], second[j], StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("Snapshots differ.");
             entryCount = second.Length;
+            watch.Stop();
         }
         return watch.Elapsed.TotalMilliseconds / repetitions;
     }
