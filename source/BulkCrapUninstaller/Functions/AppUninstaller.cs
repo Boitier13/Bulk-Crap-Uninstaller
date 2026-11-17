@@ -419,6 +419,8 @@ namespace BulkCrapUninstaller.Functions
                                              item is StartupJunkNode descending
                                      select item;
 
+                    var removalFailures = new List<Exception>();
+
                     foreach (var junkNode in sortedJunk)
                     {
                         controller.SetProgress(itemsRemoved++);
@@ -435,9 +437,31 @@ namespace BulkCrapUninstaller.Functions
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine("Exception while removing junk: " + ex);
+                                string displayName;
+                                try
+                                {
+                                    displayName = junkNode.GetDisplayName();
+                                }
+                                catch
+                                {
+                                    displayName = junkNode.ToString();
+                                }
+
+                                var failure = new InvalidOperationException(
+                                    $"Failed to remove leftover: {displayName}", ex);
+                                removalFailures.Add(failure);
+                                Console.WriteLine("Exception while removing junk: " + failure);
                             }
                         }
+                    }
+
+                    if (removalFailures.Count > 0)
+                    {
+                        var summary = string.Join(Environment.NewLine,
+                            removalFailures.Select(x => x.Message));
+                        PremadeDialogs.GenericError(new AggregateException(
+                            "Some selected leftovers could not be removed:" + Environment.NewLine + summary,
+                            removalFailures));
                     }
                 });
 
