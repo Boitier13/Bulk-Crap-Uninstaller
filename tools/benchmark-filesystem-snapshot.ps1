@@ -32,24 +32,20 @@ using System.IO;
 
 public static class BcuSnapshotBenchmark
 {
-    private static string[] CaptureSnapshot(string directoryPath)
+    private static string[] CaptureSnapshot(DirectoryInfo directory)
     {
         var entries = new List<string>();
-        AddEntry(directoryPath, entries);
+        AddEntry(directory, entries);
 
-        foreach (var child in new DirectoryInfo(directoryPath).GetFileSystemInfos())
-            AddEntry(child.FullName, entries);
+        foreach (FileSystemInfo child in directory.GetFileSystemInfos())
+            AddEntry(child, entries);
 
         entries.Sort(StringComparer.OrdinalIgnoreCase);
         return entries.ToArray();
     }
 
-    private static void AddEntry(string path, ICollection<string> entries)
+    private static void AddEntry(FileSystemInfo entry, ICollection<string> entries)
     {
-        FileSystemInfo entry = Directory.Exists(path)
-            ? (FileSystemInfo)new DirectoryInfo(path)
-            : new FileInfo(path);
-
         entry.Refresh();
         if (!entry.Exists)
             throw new FileNotFoundException("An item disappeared during snapshot capture.", path);
@@ -86,7 +82,7 @@ public static class BcuSnapshotBenchmark
         for (int i = 0; i < repetitions; i++)
         {
             watch.Start();
-            entryCount = CaptureSnapshot(path).Length;
+            entryCount = CaptureSnapshot(new DirectoryInfo(path)).Length;
             watch.Stop();
         }
         return watch.Elapsed.TotalMilliseconds / repetitions;
@@ -99,8 +95,9 @@ public static class BcuSnapshotBenchmark
         for (int i = 0; i < repetitions; i++)
         {
             watch.Start();
-            string[] first = CaptureSnapshot(path);
-            string[] second = CaptureSnapshot(path);
+            var directory = new DirectoryInfo(path);
+            string[] first = CaptureSnapshot(directory);
+            string[] second = CaptureSnapshot(directory);
             if (first.Length != second.Length)
                 throw new InvalidOperationException("Snapshot entry counts differ.");
             for (int j = 0; j < first.Length; j++)
