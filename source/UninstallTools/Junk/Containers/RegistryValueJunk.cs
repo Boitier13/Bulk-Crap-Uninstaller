@@ -30,30 +30,19 @@ namespace UninstallTools.Junk.Containers
         public override void Backup(string backupDirectory)
         {
             using var key = OpenRegKey();
+            if (key == null)
+                throw new IOException($"Registry key '{FullRegKeyPath}' could not be opened for backup.");
 
             var valueKind = key.GetValueKind(ValueName);
-            switch (valueKind)
-            {
-                case RegistryValueKind.ExpandString:
-                case RegistryValueKind.String:
-                    var targetValue = key.GetStringSafe(ValueName);
-                    var dir = CreateBackupDirectory(backupDirectory);
-                    var fileName = PathTools.SanitizeFileName(string.Concat(FullRegKeyPath, " - ", ValueName)
-                                                                    .TrimStart('\\').Replace('.', '_')) + ".reg";
-                    RegistryTools.ExportRegistryStringValues(Path.Combine(dir, fileName), FullRegKeyPath,
-                                                             new KeyValuePair<string, string>(ValueName, targetValue));
-                    break;
-                case RegistryValueKind.MultiString:
-                case RegistryValueKind.Binary:
-                case RegistryValueKind.DWord:
-                case RegistryValueKind.QWord:
-                case RegistryValueKind.Unknown:
-                default:
-                    Debug.Fail($"Unsupported type {valueKind} of value {ValueName}");
-                    break;
-                case RegistryValueKind.None:
-                    break;
-            }
+            var value = key.GetValue(ValueName, null, RegistryValueOptions.DoNotExpandEnvironmentNames);
+            if (value == null)
+                throw new IOException($"Registry value '{ValueName}' at '{FullRegKeyPath}' could not be read.");
+
+            var dir = CreateBackupDirectory(backupDirectory);
+            var fileName = PathTools.SanitizeFileName(string.Concat(FullRegKeyPath, " - ", ValueName)
+                                                            .TrimStart('\\').Replace('.', '_')) + ".reg";
+            RegistryTools.ExportRegistryValue(Path.Combine(dir, fileName), FullRegKeyPath, ValueName,
+                valueKind, value);
         }
 
         public override string GetDisplayName()
