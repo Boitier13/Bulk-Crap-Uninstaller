@@ -77,13 +77,13 @@ namespace BulkCrapUninstallerTests
         public void ExportRegistryValue_PreservesExpandStringAndNoneTypes()
         {
             var expandPath = Path.Combine(_directory, "expand.reg");
-            RegistryTools.ExportRegistryValue(expandPath, @"HKEY_CURRENT_USER\\Software\\BCUTest", "Root",
+            RegistryTools.ExportRegistryValue(expandPath, @"HKEY_CURRENT_USER\Software\BCUTest", "Root",
                 RegistryValueKind.ExpandString, "%SystemRoot%");
             StringAssert.Contains(File.ReadAllText(expandPath, Encoding.Unicode),
                 "\"Root\"=hex(2):25,00,53,00,79,00,73,00,74,00,65,00,6d,00,52,00,6f,00,6f,00,74,00,25,00,00,00");
 
             var nonePath = Path.Combine(_directory, "none.reg");
-            RegistryTools.ExportRegistryValue(nonePath, @"HKEY_CURRENT_USER\\Software\\BCUTest", "Raw",
+            RegistryTools.ExportRegistryValue(nonePath, @"HKEY_CURRENT_USER\Software\BCUTest", "Raw",
                 RegistryValueKind.None, new byte[] { 1, 2 });
             StringAssert.Contains(File.ReadAllText(nonePath, Encoding.Unicode), "\"Raw\"=hex(0):01,02");
         }
@@ -92,10 +92,10 @@ namespace BulkCrapUninstallerTests
         public void ExportRegistryValue_WrapsLongHexValuesWithRegeditContinuation()
         {
             var path = Path.Combine(_directory, "long.reg");
-            RegistryTools.ExportRegistryValue(path, @"HKEY_CURRENT_USER\\Software\\BCUTest", "Payload",
+            RegistryTools.ExportRegistryValue(path, @"HKEY_CURRENT_USER\Software\BCUTest", "Payload",
                 RegistryValueKind.Binary, System.Linq.Enumerable.Range(0, 26).Select(x => (byte)x).ToArray());
 
-            StringAssert.Contains(File.ReadAllText(path, Encoding.Unicode), "18,\\\\r\\n  19");
+            StringAssert.Contains(File.ReadAllText(path, Encoding.Unicode), "18," + "\\" + "\r\n  19");
         }
 
         [TestMethod]
