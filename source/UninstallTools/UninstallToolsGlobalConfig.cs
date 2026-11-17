@@ -252,9 +252,9 @@ namespace UninstallTools
         /// </summary>
         public static MachineType IsPathInsideProgramFiles(string fullPath)
         {
-            if (fullPath.StartsWith(_pf32, StringComparison.InvariantCultureIgnoreCase))
+            if (PathTools.SubPathIsInsideBasePath(_pf32, fullPath, true, true))
                 return MachineType.X86;
-            if (_pf64 != null && fullPath.StartsWith(_pf64, StringComparison.InvariantCultureIgnoreCase))
+            if (PathTools.SubPathIsInsideBasePath(_pf64, fullPath, true, true))
                 return MachineType.X64;
             return MachineType.Unknown;
         }
@@ -268,8 +268,8 @@ namespace UninstallTools
         public static bool IsSystemDirectory(DirectoryInfo dir)
         {
             return (dir.Attributes & FileAttributes.System) == FileAttributes.System
-                   || dir.FullName.StartsWith(WindowsDirectory, StringComparison.OrdinalIgnoreCase)
-                   || _downloadsDir != null && dir.FullName.StartsWith(_downloadsDir, StringComparison.OrdinalIgnoreCase)
+                   || PathTools.SubPathIsInsideBasePath(WindowsDirectory, dir.FullName, true, true)
+                   || PathTools.SubPathIsInsideBasePath(_downloadsDir, dir.FullName, true, true)
                    || DirectoryNameBlacklist.Any(y => y.Equals(dir.Name, StringComparison.InvariantCultureIgnoreCase));
         }
 
