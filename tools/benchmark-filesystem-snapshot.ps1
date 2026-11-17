@@ -48,7 +48,7 @@ public static class BcuSnapshotBenchmark
     {
         entry.Refresh();
         if (!entry.Exists)
-            throw new FileNotFoundException("An item disappeared during snapshot capture.", path);
+            throw new FileNotFoundException("An item disappeared during snapshot capture.", entry.FullName);
 
         bool isDirectory = entry is DirectoryInfo;
         long length = entry is FileInfo ? ((FileInfo)entry).Length : 0L;
@@ -78,11 +78,12 @@ public static class BcuSnapshotBenchmark
     public static double MeasureOneSnapshot(string path, int repetitions, out int entryCount)
     {
         var watch = new Stopwatch();
+        var directory = new DirectoryInfo(path);
         entryCount = 0;
         for (int i = 0; i < repetitions; i++)
         {
             watch.Start();
-            entryCount = CaptureSnapshot(new DirectoryInfo(path)).Length;
+            entryCount = CaptureSnapshot(directory).Length;
             watch.Stop();
         }
         return watch.Elapsed.TotalMilliseconds / repetitions;
