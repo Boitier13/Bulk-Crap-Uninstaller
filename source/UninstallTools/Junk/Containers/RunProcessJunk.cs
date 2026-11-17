@@ -39,6 +39,7 @@ namespace UninstallTools.Junk.Containers
             catch (SystemException ex)
             {
                 Trace.WriteLine($"Failed to delete junk {GetDisplayName()} - {ex}");
+                throw;
             }
         }
 
