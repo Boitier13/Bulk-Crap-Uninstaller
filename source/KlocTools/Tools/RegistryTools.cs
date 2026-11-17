@@ -245,7 +245,7 @@ namespace Klocman.Tools
                     builder.Append(',');
 
                 if (i > 0 && i % 25 == 0)
-                    builder.Append(",\\\r\n  ");
+                    builder.Append("\\\r\n  ");
 
                 builder.Append(bytes[i].ToString("x2", System.Globalization.CultureInfo.InvariantCulture));
             }
