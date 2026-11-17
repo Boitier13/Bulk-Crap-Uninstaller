@@ -14,6 +14,14 @@ $ErrorActionPreference = 'Stop'
 $root = Join-Path ([IO.Path]::GetTempPath()) ("BCU-Snapshot-Benchmark-" + [guid]::NewGuid().ToString('N'))
 $results = New-Object System.Collections.Generic.List[object]
 
+function Get-Median {
+    param([double[]]$Values)
+    $sorted = @($Values | Sort-Object)
+    $middle = [int][Math]::Floor($sorted.Count / 2)
+    if (($sorted.Count % 2) -eq 1) { return [double]$sorted[$middle] }
+    return ([double]$sorted[$middle - 1] + [double]$sorted[$middle]) / 2.0
+}
+
 # Run the timed work in compiled .NET code, not in PowerShell loops.
 # The snapshot implementation mirrors FileSystemJunk.CaptureSnapshot from PR #4.
 $benchmarkSource = @'
