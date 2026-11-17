@@ -68,12 +68,14 @@ namespace UninstallTools.Junk.Containers
 
         private static SnapshotEntry[] CaptureSnapshot(FileSystemInfo path)
         {
+            // Preserve the original order: refresh the target before enumerating its children.
+            SnapshotEntry rootEntry = CreateSnapshotEntry(path);
             FileSystemInfo[] children = path is DirectoryInfo directory
                 ? directory.GetFileSystemInfos()
                 : Array.Empty<FileSystemInfo>();
 
             var entries = new SnapshotEntry[children.Length + 1];
-            entries[0] = CreateSnapshotEntry(path);
+            entries[0] = rootEntry;
 
             for (int i = 0; i < children.Length; i++)
                 entries[i + 1] = CreateSnapshotEntry(children[i]);
