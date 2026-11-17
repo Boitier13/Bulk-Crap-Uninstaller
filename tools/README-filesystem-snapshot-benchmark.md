@@ -10,7 +10,7 @@ Pour des dossiers contenant 100, 1 000 et 5 000 fichiers immédiats :
 - **Snapshot initial** : collecte des métadonnées de chaque entrée (chemin, type, dates UTC, attributs, taille fichier), puis tri, comme dans PR #4.
 - **Deux snapshots** : deux captures successives, représentant approximativement la capture à la détection puis la revalidation avant suppression.
 
-Les opérations chronométrées sont exécutées en C# compilé par Add-Type, et non dans des boucles PowerShell, afin de limiter le surcoût du langage de script. Le code de capture reprend l'algorithme C# de la PR #4. Les temps sont des médianes sur cinq répétitions par défaut. La création des fichiers de test est exclue des mesures.
+Les opérations chronométrées sont exécutées en C# compilé par Add-Type, et non dans des boucles PowerShell, afin de limiter le surcoût du langage de script. Le code de capture reprend l'algorithme C# de la PR #4 : il réutilise les objets FileSystemInfo issus de GetFileSystemInfos(), sans recréer un FileInfo/DirectoryInfo par chemin. Le même DirectoryInfo est réutilisé entre les deux captures de la mesure de revalidation. Les temps sont des médianes sur cinq répétitions par défaut. La création des fichiers de test est exclue des mesures.
 
 ## Exécution
 
