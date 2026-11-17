@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -97,6 +98,65 @@ namespace BulkCrapUninstallerTests
                 RegistryValueKind.Binary, System.Linq.Enumerable.Range(0, 26).Select(x => (byte)x).ToArray());
 
             StringAssert.Contains(File.ReadAllText(path, Encoding.Unicode), "18," + "\\" + "\r\n  19");
+        }
+
+
+        [TestMethod]
+        public void ExportRegistryValue_ProducesFilesImportableByWindowsRegistryEditor()
+        {
+            var subKeyPath = "Software\\BCU-RegistryBackup-" + Guid.NewGuid().ToString("N");
+            var fullKeyPath = "HKEY_CURRENT_USER\\" + subKeyPath;
+            try
+            {
+                var cases = new[]
+                {
+                    new { Name = "Text", Kind = RegistryValueKind.String, Value = (object)"C:\\Program Files\\Demo" },
+                    new { Name = "Expand", Kind = RegistryValueKind.ExpandString, Value = (object)"%SystemRoot%\\Demo" },
+                    new { Name = "Dword", Kind = RegistryValueKind.DWord, Value = (object)42 },
+                    new { Name = "Qword", Kind = RegistryValueKind.QWord, Value = (object)42L },
+                    new { Name = "Binary", Kind = RegistryValueKind.Binary, Value = (object)new byte[] { 0, 1, 254, 255 } },
+                    new { Name = "Multi", Kind = RegistryValueKind.MultiString, Value = (object)new[] { "one", "two" } },
+                    new { Name = "None", Kind = RegistryValueKind.None, Value = (object)new byte[] { 1, 2 } }
+                };
+
+                foreach (var item in cases)
+                {
+                    var file = Path.Combine(_directory, item.Name + ".reg");
+                    RegistryTools.ExportRegistryValue(file, fullKeyPath, item.Name, item.Kind, item.Value);
+                    using (var process = Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "reg.exe",
+                        Arguments = "import \"" + file + "\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardError = true,
+                        RedirectStandardOutput = true
+                    }))
+                    {
+                        Assert.IsNotNull(process);
+                        Assert.IsTrue(process.WaitForExit(15000), "reg.exe import timed out.");
+                        Assert.AreEqual(0, process.ExitCode, process.StandardError.ReadToEnd());
+                    }
+                }
+
+                using (var key = Registry.CurrentUser.OpenSubKey(subKeyPath))
+                {
+                    Assert.IsNotNull(key);
+                    foreach (var item in cases)
+                        Assert.AreEqual(item.Kind, key.GetValueKind(item.Name), item.Name + " has the wrong registry type.");
+
+                    Assert.AreEqual(@"C:\Program Files\Demo", key.GetValue("Text"));
+                    Assert.AreEqual(@"%SystemRoot%\Demo",
+                        key.GetValue("Expand", null, RegistryValueOptions.DoNotExpandEnvironmentNames));
+                    CollectionAssert.AreEqual(new byte[] { 0, 1, 254, 255 }, (byte[])key.GetValue("Binary"));
+                    CollectionAssert.AreEqual(new[] { "one", "two" }, (string[])key.GetValue("Multi"));
+                    CollectionAssert.AreEqual(new byte[] { 1, 2 }, (byte[])key.GetValue("None"));
+                }
+            }
+            finally
+            {
+                Registry.CurrentUser.DeleteSubKeyTree(subKeyPath, false);
+            }
         }
 
         [TestMethod]
