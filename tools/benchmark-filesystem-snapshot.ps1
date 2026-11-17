@@ -92,11 +92,11 @@ public static class BcuSnapshotBenchmark
     public static double MeasureTwoSnapshots(string path, int repetitions, out int entryCount)
     {
         var watch = new Stopwatch();
+        var directory = new DirectoryInfo(path);
         entryCount = 0;
         for (int i = 0; i < repetitions; i++)
         {
             watch.Start();
-            var directory = new DirectoryInfo(path);
             string[] first = CaptureSnapshot(directory);
             string[] second = CaptureSnapshot(directory);
             if (first.Length != second.Length)
