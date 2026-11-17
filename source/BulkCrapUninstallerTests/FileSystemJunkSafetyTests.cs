@@ -51,6 +51,51 @@ namespace BulkCrapUninstallerTests
             }
         }
 
+        [TestMethod]
+        public void Delete_AllowsUnchangedFile()
+        {
+            var directory = CreateTemporaryDirectory();
+            var filePath = System.IO.Path.Combine(directory, "unchanged-leftover.txt");
+            try
+            {
+                File.WriteAllText(filePath, "unchanged content");
+                var junk = new FileSystemJunk(new FileInfo(filePath), null, null);
+
+                junk.Delete();
+
+                Assert.IsFalse(File.Exists(filePath));
+            }
+            finally
+            {
+                if (Directory.Exists(directory))
+                    Directory.Delete(directory, true);
+            }
+        }
+
+        [TestMethod]
+        public void Delete_RefusesDirectoryWhenImmediateChildChanges()
+        {
+            var directory = CreateTemporaryDirectory();
+            var childPath = System.IO.Path.Combine(directory, "child.txt");
+            try
+            {
+                File.WriteAllText(childPath, "original");
+                var junk = new FileSystemJunk(new DirectoryInfo(directory), null, null);
+
+                File.WriteAllText(childPath, "changed");
+                File.SetLastWriteTimeUtc(childPath, DateTime.UtcNow.AddMinutes(2));
+
+                Assert.ThrowsException<IOException>(() => junk.Delete());
+                Assert.IsTrue(Directory.Exists(directory));
+                Assert.AreEqual("changed", File.ReadAllText(childPath));
+            }
+            finally
+            {
+                if (Directory.Exists(directory))
+                    Directory.Delete(directory, true);
+            }
+        }
+
         private static string CreateTemporaryDirectory()
         {
             var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
