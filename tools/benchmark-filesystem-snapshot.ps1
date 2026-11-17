@@ -40,7 +40,8 @@ function Get-Snapshot {
         $length = 0L
 
         if (-not $isDirectory) {
-            $length = (New-Object IO.FileInfo($itemPath)).Length
+            $fileInfo = [IO.FileInfo]$itemPath
+            $length = $fileInfo.Length
         }
 
         $kind = if ($isDirectory) { 'D' } else { 'F' }
@@ -103,7 +104,7 @@ try {
             $revalidationTimes.Add($watch.Elapsed.TotalMilliseconds)
 
             if ($baselineCount -ne $count -or $snapshot.Length -ne ($count + 1) -or
-                -not [Linq.Enumerable]::SequenceEqual([string[]]$first, [string[]]$second, [StringComparer]::OrdinalIgnoreCase)) {
+                ([string]::Join([Environment]::NewLine, $first) -cne [string]::Join([Environment]::NewLine, $second))) {
                 throw "Résultat incohérent pour le jeu de $count fichiers."
             }
         }
