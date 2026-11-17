@@ -53,7 +53,9 @@ namespace UninstallTools.Junk
                     if (UninstallToolsGlobalConfig.IsSystemDirectory(subDirectory) || UninstallToolsGlobalConfig.IsKnownFolder(subDirectory))
                         continue;
 
-                    if (subDirectory.FullName.ContainsAny(_otherInstallLocations, StringComparison.CurrentCultureIgnoreCase))
+                    if (_otherInstallLocations.Any(location =>
+                            PathTools.SubPathIsInsideBasePath(subDirectory.FullName, location, true, true) ||
+                            PathTools.SubPathIsInsideBasePath(location, subDirectory.FullName, true, true)))
                         continue;
 
                     var questionableDirName = subDirectory.Name.ContainsAny(UninstallToolsGlobalConfig.QuestionableDirectoryNames, StringComparison.CurrentCultureIgnoreCase);
