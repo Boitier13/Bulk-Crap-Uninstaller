@@ -167,6 +167,91 @@ namespace Klocman.Tools
         ///     Root key can be named by either its long or short name. (long: "HKEY_LOCAL_MACHINE", short: "HKLM")
         /// </summary>
         /// <param name="fullPath">Full path of the requested registry key</param>
+
+        /// <summary>
+        /// Export one registry value to a .reg file while preserving its registry data type.
+        /// </summary>
+        public static void ExportRegistryValue(string outputFileName, string containingKeyPath, string valueName,
+            RegistryValueKind valueKind, object value)
+        {
+            if (string.IsNullOrWhiteSpace(outputFileName))
+                throw new ArgumentException("Output filename is required.", nameof(outputFileName));
+            if (string.IsNullOrWhiteSpace(containingKeyPath))
+                throw new ArgumentException("Registry key path is required.", nameof(containingKeyPath));
+            if (value == null)
+                throw new ArgumentNullException(nameof(value));
+
+            var builder = new StringBuilder();
+            builder.AppendLine(@"Windows Registry Editor Version 5.00");
+            builder.AppendLine();
+            builder.Append('[').Append(containingKeyPath).AppendLine("]");
+            builder.Append(FormatRegistryValueName(valueName)).Append('=');
+
+            switch (valueKind)
+            {
+                case RegistryValueKind.String:
+                case RegistryValueKind.ExpandString:
+                    var stringValue = value as string
+                        ?? throw new ArgumentException("Registry string data must be a string.", nameof(value));
+                    builder.Append('"').Append(EscapeRegistryString(stringValue)).AppendLine("\"");
+                    break;
+                case RegistryValueKind.DWord:
+                    builder.Append("dword:")
+                        .Append(unchecked((uint)Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture))
+                            .ToString("x8", System.Globalization.CultureInfo.InvariantCulture))
+                        .AppendLine();
+                    break;
+                case RegistryValueKind.QWord:
+                    AppendRegistryHex(builder, "hex(b)", BitConverter.GetBytes(
+                        Convert.ToInt64(value, System.Globalization.CultureInfo.InvariantCulture)));
+                    break;
+                case RegistryValueKind.Binary:
+                    AppendRegistryHex(builder, "hex", value as byte[]
+                        ?? throw new ArgumentException("REG_BINARY data must be a byte array.", nameof(value)));
+                    break;
+                case RegistryValueKind.MultiString:
+                    var strings = value as string[]
+                        ?? throw new ArgumentException("REG_MULTI_SZ data must be a string array.", nameof(value));
+                    var multiStringBytes = System.Text.Encoding.Unicode.GetBytes(string.Join("\0", strings) + "\0\0");
+                    AppendRegistryHex(builder, "hex(7)", multiStringBytes);
+                    break;
+                case RegistryValueKind.None:
+                    AppendRegistryHex(builder, "hex(0)", value as byte[]
+                        ?? throw new ArgumentException("REG_NONE data must be a byte array.", nameof(value)));
+                    break;
+                default:
+                    throw new NotSupportedException($"Registry value type '{valueKind}' cannot be exported safely.");
+            }
+
+            File.WriteAllText(outputFileName, builder.ToString(), Encoding.Unicode);
+        }
+
+        private static string FormatRegistryValueName(string valueName)
+        {
+            return string.IsNullOrEmpty(valueName) ? "@" : "\"" + EscapeRegistryString(valueName) + "\"";
+        }
+
+        private static string EscapeRegistryString(string value)
+        {
+            return value.Replace(@"\", @"\\").Replace("\"", "\\\"");
+        }
+
+        private static void AppendRegistryHex(StringBuilder builder, string type, byte[] bytes)
+        {
+            builder.Append(type).Append(':');
+            for (var i = 0; i < bytes.Length; i++)
+            {
+                if (i > 0)
+                    builder.Append(',');
+
+                if (i > 0 && i % 25 == 0)
+                    builder.Append(",\\\r\n  ");
+
+                builder.Append(bytes[i].ToString("x2", System.Globalization.CultureInfo.InvariantCulture));
+            }
+            builder.AppendLine();
+        }
+
         public static RegistryKey OpenRegistryKey(string fullPath)
         {
             return OpenRegistryKey(fullPath, false);
