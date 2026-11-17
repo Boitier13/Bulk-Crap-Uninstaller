@@ -163,12 +163,6 @@ namespace Klocman.Tools
         }
 
         /// <summary>
-        ///     Open registry key using its fully qualified path. The key is opened read-only.
-        ///     Root key can be named by either its long or short name. (long: "HKEY_LOCAL_MACHINE", short: "HKLM")
-        /// </summary>
-        /// <param name="fullPath">Full path of the requested registry key</param>
-
-        /// <summary>
         /// Export one registry value to a .reg file while preserving its registry data type.
         /// </summary>
         public static void ExportRegistryValue(string outputFileName, string containingKeyPath, string valueName,
@@ -252,6 +246,11 @@ namespace Klocman.Tools
             builder.AppendLine();
         }
 
+        /// <summary>
+        ///     Open registry key using its fully qualified path. The key is opened read-only.
+        ///     Root key can be named by either its long or short name. (long: "HKEY_LOCAL_MACHINE", short: "HKLM")
+        /// </summary>
+        /// <param name="fullPath">Full path of the requested registry key</param>
         public static RegistryKey OpenRegistryKey(string fullPath)
         {
             return OpenRegistryKey(fullPath, false);
