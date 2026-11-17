@@ -6,7 +6,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using Klocman.Tools;
 using Microsoft.VisualBasic.FileIO;
 
@@ -14,7 +13,7 @@ namespace UninstallTools.Junk.Containers
 {
     public class FileSystemJunk : JunkResultBase
     {
-        private readonly string[] _initialSnapshot;
+        private readonly SnapshotEntry[] _initialSnapshot;
         private readonly Exception _snapshotError;
 
         public FileSystemJunk(FileSystemInfo path, ApplicationUninstallerEntry application, IJunkCreator source) : base(application, source)
@@ -44,7 +43,7 @@ namespace UninstallTools.Junk.Containers
             if (_snapshotError != null)
                 throw new IOException("The leftover could not be safely checked when it was detected, so it was not deleted.", _snapshotError);
 
-            string[] currentSnapshot;
+            SnapshotEntry[] currentSnapshot;
             try
             {
                 currentSnapshot = CaptureSnapshot(Path);
@@ -54,7 +53,7 @@ namespace UninstallTools.Junk.Containers
                 throw new IOException("The leftover could not be rechecked immediately before deletion, so it was not deleted.", ex);
             }
 
-            if (!_initialSnapshot.SequenceEqual(currentSnapshot, StringComparer.OrdinalIgnoreCase))
+            if (!SnapshotsMatch(_initialSnapshot, currentSnapshot))
                 throw new IOException("The leftover has changed since it was detected. It was not deleted: " + Path.FullName);
 
             if (Path is DirectoryInfo)
@@ -67,25 +66,23 @@ namespace UninstallTools.Junk.Containers
                 throw new NotImplementedException("Unknown FileSystemInfo implementation");
         }
 
-        private static string[] CaptureSnapshot(FileSystemInfo path)
+        private static SnapshotEntry[] CaptureSnapshot(FileSystemInfo path)
         {
-            var entries = new List<string>();
-            AddSnapshotEntry(path, entries);
+            FileSystemInfo[] children = path is DirectoryInfo directory
+                ? directory.GetFileSystemInfos()
+                : Array.Empty<FileSystemInfo>();
 
-            if (path is DirectoryInfo directory)
-            {
-                // A shallow snapshot is intentionally used to keep scans inexpensive.
-                // It detects additions/removals in the target directory and changes to
-                // its immediate children (including child-directory timestamps).
-                foreach (var child in directory.GetFileSystemInfos())
-                    AddSnapshotEntry(child, entries);
-            }
+            var entries = new SnapshotEntry[children.Length + 1];
+            entries[0] = CreateSnapshotEntry(path);
 
-            entries.Sort(StringComparer.OrdinalIgnoreCase);
-            return entries.ToArray();
+            for (int i = 0; i < children.Length; i++)
+                entries[i + 1] = CreateSnapshotEntry(children[i]);
+
+            Array.Sort(entries, SnapshotEntryPathComparer.Instance);
+            return entries;
         }
 
-        private static void AddSnapshotEntry(FileSystemInfo entry, ICollection<string> snapshot)
+        private static SnapshotEntry CreateSnapshotEntry(FileSystemInfo entry)
         {
             entry.Refresh();
             if (!entry.Exists)
@@ -93,13 +90,69 @@ namespace UninstallTools.Junk.Containers
 
             var isDirectory = entry is DirectoryInfo;
             var length = entry is FileInfo file ? file.Length : 0L;
-            snapshot.Add(string.Join("|",
+
+            return new SnapshotEntry(
                 entry.FullName,
-                isDirectory ? "D" : "F",
+                isDirectory,
                 entry.CreationTimeUtc.Ticks,
                 entry.LastWriteTimeUtc.Ticks,
-                (int)entry.Attributes,
-                length));
+                entry.Attributes,
+                length);
+        }
+
+        private static bool SnapshotsMatch(SnapshotEntry[] first, SnapshotEntry[] second)
+        {
+            if (first.Length != second.Length)
+                return false;
+
+            for (int i = 0; i < first.Length; i++)
+            {
+                if (!first[i].Equals(second[i]))
+                    return false;
+            }
+
+            return true;
+        }
+
+        private readonly struct SnapshotEntry : IEquatable<SnapshotEntry>
+        {
+            public SnapshotEntry(string path, bool isDirectory, long creationTimeUtcTicks,
+                long lastWriteTimeUtcTicks, FileAttributes attributes, long length)
+            {
+                Path = path;
+                IsDirectory = isDirectory;
+                CreationTimeUtcTicks = creationTimeUtcTicks;
+                LastWriteTimeUtcTicks = lastWriteTimeUtcTicks;
+                Attributes = attributes;
+                Length = length;
+            }
+
+            public string Path { get; }
+            private bool IsDirectory { get; }
+            private long CreationTimeUtcTicks { get; }
+            private long LastWriteTimeUtcTicks { get; }
+            private FileAttributes Attributes { get; }
+            private long Length { get; }
+
+            public bool Equals(SnapshotEntry other)
+            {
+                return StringComparer.OrdinalIgnoreCase.Equals(Path, other.Path)
+                    && IsDirectory == other.IsDirectory
+                    && CreationTimeUtcTicks == other.CreationTimeUtcTicks
+                    && LastWriteTimeUtcTicks == other.LastWriteTimeUtcTicks
+                    && Attributes == other.Attributes
+                    && Length == other.Length;
+            }
+        }
+
+        private sealed class SnapshotEntryPathComparer : IComparer<SnapshotEntry>
+        {
+            public static readonly SnapshotEntryPathComparer Instance = new SnapshotEntryPathComparer();
+
+            public int Compare(SnapshotEntry x, SnapshotEntry y)
+            {
+                return StringComparer.OrdinalIgnoreCase.Compare(x.Path, y.Path);
+            }
         }
 
         public override string GetDisplayName()
