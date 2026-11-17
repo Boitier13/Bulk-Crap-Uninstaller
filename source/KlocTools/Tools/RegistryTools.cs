@@ -184,10 +184,14 @@ namespace Klocman.Tools
             switch (valueKind)
             {
                 case RegistryValueKind.String:
-                case RegistryValueKind.ExpandString:
                     var stringValue = value as string
-                        ?? throw new ArgumentException("Registry string data must be a string.", nameof(value));
+                        ?? throw new ArgumentException("REG_SZ data must be a string.", nameof(value));
                     builder.Append('"').Append(EscapeRegistryString(stringValue)).AppendLine("\"");
+                    break;
+                case RegistryValueKind.ExpandString:
+                    var expandStringValue = value as string
+                        ?? throw new ArgumentException("REG_EXPAND_SZ data must be a string.", nameof(value));
+                    AppendRegistryHex(builder, "hex(2)", Encoding.Unicode.GetBytes(expandStringValue + "\0"));
                     break;
                 case RegistryValueKind.DWord:
                     builder.Append("dword:")
