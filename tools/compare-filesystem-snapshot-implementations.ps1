@@ -111,16 +111,10 @@ public static class BcuSnapshotComparison
         if (legacy.Length != typed.Length)
             return false;
 
-        // Compare as sorted sets. The legacy algorithm sorts serialized rows,
-        // while the typed algorithm sorts by path; their ordering can differ
-        // for prefix-related filenames even when the captured data is identical.
-        var typedRows = new string[typed.Length];
-        for (int i = 0; i < typed.Length; i++)
-            typedRows[i] = typed[i].ToLegacyRow();
-
-        Array.Sort(typedRows, StringComparer.OrdinalIgnoreCase);
+        // Compare the exact production sequence, not merely the same entries as a set.
+        // This catches ordering regressions that would make positional snapshot comparison fail.
         for (int i = 0; i < legacy.Length; i++)
-            if (!String.Equals(legacy[i], typedRows[i], StringComparison.OrdinalIgnoreCase))
+            if (!String.Equals(legacy[i], typed[i].ToLegacyRow(), StringComparison.OrdinalIgnoreCase))
                 return false;
 
         return true;
@@ -244,7 +238,20 @@ public static class BcuSnapshotComparison
 
         public int Compare(SnapshotEntry x, SnapshotEntry y)
         {
-            return StringComparer.OrdinalIgnoreCase.Compare(x.Path, y.Path);
+            int pathComparison = StringComparer.OrdinalIgnoreCase.Compare(x.Path, y.Path);
+            if (pathComparison == 0)
+                return 0;
+
+            // Match the legacy sort of serialized rows: each path was followed by '|'.
+            if (x.Path.Length < y.Path.Length
+                && y.Path.StartsWith(x.Path, StringComparison.OrdinalIgnoreCase))
+                return '|'.CompareTo(y.Path[x.Path.Length]);
+
+            if (y.Path.Length < x.Path.Length
+                && x.Path.StartsWith(y.Path, StringComparison.OrdinalIgnoreCase))
+                return x.Path[y.Path.Length].CompareTo('|');
+
+            return pathComparison;
         }
     }
 }
