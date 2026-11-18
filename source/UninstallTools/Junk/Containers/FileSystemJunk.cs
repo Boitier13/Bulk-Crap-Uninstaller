@@ -153,7 +153,22 @@ namespace UninstallTools.Junk.Containers
 
             public int Compare(SnapshotEntry x, SnapshotEntry y)
             {
-                return StringComparer.OrdinalIgnoreCase.Compare(x.Path, y.Path);
+                int pathComparison = StringComparer.OrdinalIgnoreCase.Compare(x.Path, y.Path);
+                if (pathComparison == 0)
+                    return 0;
+
+                // Match the legacy sort of serialized rows: each path was followed by '|'.
+                // Without this tie-break, a parent path sorts before its children here,
+                // whereas the legacy serialized row sorts after them ('|' > '\\').
+                if (x.Path.Length < y.Path.Length
+                    && y.Path.StartsWith(x.Path, StringComparison.OrdinalIgnoreCase))
+                    return '|'.CompareTo(y.Path[x.Path.Length]);
+
+                if (y.Path.Length < x.Path.Length
+                    && x.Path.StartsWith(y.Path, StringComparison.OrdinalIgnoreCase))
+                    return x.Path[y.Path.Length].CompareTo('|');
+
+                return pathComparison;
             }
         }
 
