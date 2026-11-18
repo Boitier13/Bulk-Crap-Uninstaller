@@ -96,6 +96,28 @@ namespace BulkCrapUninstallerTests
             }
         }
 
+        [TestMethod]
+        public void Delete_AllowsUnchangedDirectoryWithImmediateChild()
+        {
+            var directory = CreateTemporaryDirectory();
+            var childPath = System.IO.Path.Combine(directory, "child.txt");
+            try
+            {
+                File.WriteAllText(childPath, "unchanged content");
+                var junk = new FileSystemJunk(new DirectoryInfo(directory), null, null);
+
+                junk.Delete();
+
+                Assert.IsFalse(Directory.Exists(directory));
+                Assert.IsFalse(File.Exists(childPath));
+            }
+            finally
+            {
+                if (Directory.Exists(directory))
+                    Directory.Delete(directory, true);
+            }
+        }
+
         private static string CreateTemporaryDirectory()
         {
             var path = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
